@@ -1,7 +1,0 @@
-Пользователь s3
-Myuser
-1CFlb8$Vg%l`J~"mDGn+
-
-Access key: e7276dcc8ff84c8b80e8e2ff5399a419
-
-Secret key: e2a7e1cce6b14853b71fa509c1c31778
