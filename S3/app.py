@@ -36,10 +36,70 @@ class AsyncObjectStorage:
         self._bucket = container
         self._session = get_session()
 
-    @asynccontextmanager
-    async def _connect(self):
-        async with self._session.create_client("s3", **self._auth) as connection:
-            yield connection
+    async def put_bucket_policy(self):
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "AllowPublicRead",
+                    "Effect": "Allow",
+                    "Principal": "*",
+                    "Action": ["s3:GetObject"],
+                    "Resource": f"arn:aws:s3:::{self._bucket}/*"
+                },
+                {
+                    "Sid": "AllowOwnerWrite",
+                    "Effect": "Allow",
+                    "Principal": {"AWS": f"arn:aws:iam::YOUR_ACCOUNT_ID:user/YOUR_USERNAME"},
+                    "Action": ["s3:PutObject"],
+                    "Resource": f"arn:aws:s3:::{self._bucket}/*"
+                }
+            ]
+        }
+
+        import json
+
+        async with self._connect() as client:
+            try:
+                await client.put_bucket_policy(
+                    Bucket=self._bucket,
+                    Policy=json.dumps(policy)
+                )
+                print("Bucket policy успешно установлена")
+            except ClientError as e:
+                print(f"Ошибка установки bucket policy: {e}")
+
+    async def enable_versioning(self):
+        async with self._connect() as client:
+            try:
+                await client.put_bucket_versioning(
+                    Bucket=self._bucket,
+                    VersioningConfiguration={"Status": "Enabled"}
+                )
+                print("Версионирование включено")
+            except ClientError as e:
+                print(f"Ошибка включения версионирования: {e}")
+
+    async def put_lifecycle_policy(self):
+        lifecycle_config = {
+            'Rules': [
+                {
+                    'ID': 'DeleteObjectsAfter3Days',
+                    'Status': 'Enabled',
+                    'Prefix': '',  # применить ко всем объектам
+                    'Expiration': {'Days': 3},
+                },
+            ]
+        }
+        async with self._connect() as client:
+            try:
+                await client.put_bucket_lifecycle_configuration(
+                    Bucket=self._bucket,
+                    LifecycleConfiguration=lifecycle_config
+                )
+                print("Lifecycle policy установлена")
+            except ClientError as e:
+                print(f"Ошибка установки lifecycle policy: {e}")
 
     async def send_file(self, local_source: str):
         file_ref = Path(local_source)
